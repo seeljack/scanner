@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -14,6 +14,82 @@ import {
   SafeAreaView
 } from 'react-native';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
+
+// Add mock data directly in this file
+const MOCK_DOCUMENTS = [
+  {
+    id: '1',
+    title: 'Invoice #1234',
+    date: '2023-05-15',
+    category: 'Invoices',
+    tags: ['business', 'tax'],
+    preview: null,
+    lastViewed: '2023-06-01'
+  },
+  {
+    id: '2',
+    title: 'Receipt - Office Supplies',
+    date: '2023-05-10',
+    category: 'Receipts',
+    tags: ['business', 'expense'],
+    preview: null,
+    lastViewed: '2023-05-20'
+  },
+  {
+    id: '3',
+    title: 'Rental Agreement',
+    date: '2023-04-01',
+    category: 'Contracts',
+    tags: ['personal', 'important'],
+    preview: null,
+    lastViewed: '2023-05-15'
+  },
+  {
+    id: '4',
+    title: 'Driver License',
+    date: '2023-03-15',
+    category: 'IDs',
+    tags: ['personal', 'important'],
+    preview: null,
+    lastViewed: '2023-04-10'
+  },
+  {
+    id: '5',
+    title: 'Meeting Notes',
+    date: '2023-05-05',
+    category: 'Notes',
+    tags: ['business'],
+    preview: null,
+    lastViewed: '2023-05-06'
+  },
+  {
+    id: '6',
+    title: 'Internet Bill',
+    date: '2023-05-20',
+    category: 'Invoices',
+    tags: ['personal', 'bill'],
+    preview: null,
+    lastViewed: '2023-05-21'
+  },
+  {
+    id: '7',
+    title: 'Health Insurance',
+    date: '2023-02-10',
+    category: 'Contracts',
+    tags: ['personal', 'health', 'important'],
+    preview: null,
+    lastViewed: '2023-03-15'
+  },
+  {
+    id: '8',
+    title: 'Project Proposal',
+    date: '2023-05-18',
+    category: 'Notes',
+    tags: ['business', 'project'],
+    preview: null,
+    lastViewed: '2023-05-19'
+  }
+];
 
 // Mock OCR text for demo purposes
 const MOCK_OCR_TEXT = `INVOICE
@@ -52,35 +128,73 @@ const DocumentDetailScreen = ({ route, navigation }) => {
   const isNewScan = route?.params?.newScan || false;
   
   // State for document details
-  const [document, setDocument] = useState({
-    id: documentId,
-    title: 'Invoice #1234',
-    date: '2023-05-15',
-    category: 'Invoices',
-    tags: ['business', 'tax'],
-    preview: null,
-    lastViewed: '2023-06-01',
-    ocrText: MOCK_OCR_TEXT,
-    notes: ''
-  });
+  const [document, setDocument] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
   
   // State for UI
   const [isEditingTitle, setIsEditingTitle] = useState(false);
-  const [newTitle, setNewTitle] = useState(document.title);
+  const [newTitle, setNewTitle] = useState('');
   const [isEditingOcr, setIsEditingOcr] = useState(false);
-  const [editedOcrText, setEditedOcrText] = useState(document.ocrText);
+  const [editedOcrText, setEditedOcrText] = useState('');
   const [showAiSummary, setShowAiSummary] = useState(false);
   const [aiSummary, setAiSummary] = useState('');
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
   const [showSuggestedTags, setShowSuggestedTags] = useState(false);
   const [suggestedTags, setSuggestedTags] = useState([]);
-  const [notes, setNotes] = useState(document.notes);
-  const [selectedTags, setSelectedTags] = useState(document.tags || []);
+  const [notes, setNotes] = useState('');
+  const [selectedTags, setSelectedTags] = useState([]);
   const [activeTab, setActiveTab] = useState('preview');
   
   // Refs
   const titleInputRef = useRef(null);
   const ocrTextInputRef = useRef(null);
+  
+  // Fetch document data when component mounts
+  useEffect(() => {
+    // In a real app, you would fetch this from a database or API
+    // For now, we'll use the mock data
+    const fetchDocument = () => {
+      setIsLoading(true);
+      
+      // Find the document in MOCK_DOCUMENTS by ID
+      const foundDocument = MOCK_DOCUMENTS.find(doc => doc.id === documentId);
+      
+      if (foundDocument) {
+        // Use the actual document data
+        setDocument({
+          ...foundDocument,
+          ocrText: MOCK_OCR_TEXT, // This would come from the real document in a full implementation
+          notes: ''
+        });
+        setNewTitle(foundDocument.title);
+        setEditedOcrText(MOCK_OCR_TEXT);
+        setNotes('');
+        setSelectedTags(foundDocument.tags || []);
+      } else if (isNewScan) {
+        // Handle new scan
+        const newDocument = {
+          id: 'new-' + Date.now(),
+          title: 'New Scan',
+          date: new Date().toISOString().split('T')[0],
+          category: 'Uncategorized',
+          tags: [],
+          preview: null,
+          lastViewed: new Date().toISOString().split('T')[0],
+          ocrText: MOCK_OCR_TEXT,
+          notes: ''
+        };
+        setDocument(newDocument);
+        setNewTitle(newDocument.title);
+        setEditedOcrText(MOCK_OCR_TEXT);
+        setNotes('');
+        setSelectedTags([]);
+      }
+      
+      setIsLoading(false);
+    };
+    
+    fetchDocument();
+  }, [documentId, isNewScan]);
   
   // Handle title edit
   const handleTitleEdit = () => {
@@ -91,8 +205,10 @@ const DocumentDetailScreen = ({ route, navigation }) => {
   };
   
   const saveTitle = () => {
-    setDocument({ ...document, title: newTitle });
-    setIsEditingTitle(false);
+    if (document) {
+      setDocument({ ...document, title: newTitle });
+      setIsEditingTitle(false);
+    }
   };
   
   // Handle OCR text edit
@@ -327,6 +443,38 @@ const DocumentDetailScreen = ({ route, navigation }) => {
     }
   };
   
+  // Show loading state while fetching document
+  if (isLoading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#2D5F7C" />
+          <Text style={styles.loadingText}>Loading document...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+  
+  // If document not found
+  if (!document) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+        <View style={styles.errorContainer}>
+          <MaterialIcons name="error-outline" size={60} color="#FF6B6B" />
+          <Text style={styles.errorText}>Document not found</Text>
+          <TouchableOpacity 
+            style={styles.errorButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Text style={styles.errorButtonText}>Go Back</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+  
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
@@ -351,7 +499,7 @@ const DocumentDetailScreen = ({ route, navigation }) => {
               autoFocus
             />
             <TouchableOpacity onPress={saveTitle}>
-              <MaterialIcons name="check" size={24} color="#1E88E5" />
+              <MaterialIcons name="check" size={24} color="#2D5F7C" />
             </TouchableOpacity>
           </View>
         ) : (
@@ -861,6 +1009,39 @@ const styles = StyleSheet.create({
   activeTabText: {
     color: '#2D5F7C',
     fontWeight: 'bold',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#666',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  errorText: {
+    fontSize: 18,
+    color: '#333',
+    marginTop: 16,
+    marginBottom: 24,
+  },
+  errorButton: {
+    backgroundColor: '#2D5F7C',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+  },
+  errorButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 
