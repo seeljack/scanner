@@ -12,8 +12,16 @@ import {
   Platform
 } from 'react-native';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
-import { Camera, CameraType, FlashMode } from 'expo-camera';
+import { Camera, CameraType, FlashMode, AutoFocus, WhiteBalance } from 'expo-camera';
 
+
+// Test if Camera is imported correctly
+console.log({
+  CameraExists: !!Camera,
+  CameraTypeExists: !!CameraType,
+  FlashModeExists: !!FlashMode,
+  AutoFocusExists: !!AutoFocus,
+});
 
 // Document placeholder component instead of using an image file
 const DocumentPlaceholder = () => (
@@ -116,14 +124,14 @@ const ScanScreen = ({ navigation }) => {
       </View>
       
       <View style={styles.cameraContainer}>
-        <Camera
-          ref={cameraRef}
-          style={styles.camera}
-          type={Camera.Constants.Type.back}
-          flashMode={flashEnabled ? Camera.Constants.FlashMode.torch : Camera.Constants.FlashMode.off}
-          autoFocus={Camera.Constants.AutoFocus.on}
-          whiteBalance={Camera.Constants.WhiteBalance.auto}
-        >
+      <Camera
+        ref={cameraRef}
+        style={styles.camera}
+        type={CameraType.back}
+        flashMode={flashEnabled ? FlashMode.torch : FlashMode.off}
+        autoFocus={AutoFocus.on}
+        whiteBalance={WhiteBalance.auto}
+      >
           {scanning && (
             <View style={styles.scanningOverlay}>
               <ActivityIndicator size="large" color="white" />

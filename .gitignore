@@ -1,36 +1,88 @@
-# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
-
-# dependencies
-node_modules/
+# Dependencies
+/node_modules
+/.pnp
+.pnp.js
+/npm-debug.log
+/yarn-error.log
+/yarn-debug.log
+/.yarn
 
 # Expo
-.expo/
-dist/
-web-build/
-expo-env.d.ts
+/.expo/
+/web-build/
+/dist/
 
 # Native
-*.orig.*
-*.jks
-*.p8
-*.p12
-*.key
-*.mobileprovision
+/ios/Pods/
+/ios/build/
+/android/app/build/
+/android/build/
+/android/.gradle
+/android/local.properties
+/android/captures/
+/android/app/release/
 
-# Metro
-.metro-health-check*
+# Testing
+/coverage
 
-# debug
-npm-debug.*
-yarn-debug.*
-yarn-error.*
+# Production
+/build
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDE - VSCode
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# IDE - IntelliJ/WebStorm/Android Studio
+.idea/
+*.iml
+.gradle
+local.properties
+
+# IDE - Xcode
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+xcuserdata
+*.xccheckout
+*.moved-aside
+DerivedData
+*.hmap
+*.ipa
+*.xcuserstate
+project.xcworkspace
 
 # macOS
 .DS_Store
-*.pem
+.AppleDouble
+.LSOverride
+._*
 
-# local env files
-.env*.local
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
 
-# typescript
-*.tsbuildinfo
+# Temporary files
+*.swp
+*.swo
+*~
+
+# Logs
+logs
+*.log
