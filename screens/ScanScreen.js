@@ -1,27 +1,16 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { 
   StyleSheet, 
   View, 
   Text, 
   TouchableOpacity, 
-  Switch,
   Alert,
   StatusBar,
   SafeAreaView,
-  ActivityIndicator,
-  Platform
+  ActivityIndicator
 } from 'react-native';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
-import { Camera, CameraType, FlashMode, AutoFocus, WhiteBalance } from 'expo-camera';
-
-
-// Test if Camera is imported correctly
-console.log({
-  CameraExists: !!Camera,
-  CameraTypeExists: !!CameraType,
-  FlashModeExists: !!FlashMode,
-  AutoFocusExists: !!AutoFocus,
-});
+import { CameraView, useCameraPermissions } from 'expo-camera';
 
 // Document placeholder component instead of using an image file
 const DocumentPlaceholder = () => (
@@ -33,7 +22,7 @@ const DocumentPlaceholder = () => (
 );
 
 const ScanScreen = ({ navigation }) => {
-  const [hasPermission, setHasPermission] = useState(null);
+  const [permission, requestPermission] = useCameraPermissions();
   const [flashEnabled, setFlashEnabled] = useState(false);
   const [autoDetectEnabled, setAutoDetectEnabled] = useState(true);
   const [scanMode, setScanMode] = useState('single'); // 'single' or 'batch'
@@ -42,14 +31,6 @@ const ScanScreen = ({ navigation }) => {
   
   const cameraRef = useRef(null);
   
-  // Request camera permission
-  useEffect(() => {
-    (async () => {
-      const { status } = await Camera.requestCameraPermissionsAsync();
-      setHasPermission(status === 'granted');
-    })();
-  }, []);
-  
   const takePicture = async () => {
     if (cameraRef.current) {
       setScanning(true);
@@ -57,7 +38,6 @@ const ScanScreen = ({ navigation }) => {
         const photo = await cameraRef.current.takePictureAsync({
           quality: 0.8,
           base64: true,
-          skipProcessing: false,
         });
         
         setCapturedImage(photo);
@@ -84,7 +64,8 @@ const ScanScreen = ({ navigation }) => {
   };
 
   // Handle camera permission
-  if (hasPermission === null) {
+  if (!permission) {
+    // Camera permissions are still loading
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.permissionContainer}>
@@ -95,7 +76,8 @@ const ScanScreen = ({ navigation }) => {
     );
   }
   
-  if (hasPermission === false) {
+  if (!permission.granted) {
+    // Camera permissions are not granted yet
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.permissionContainer}>
@@ -103,6 +85,12 @@ const ScanScreen = ({ navigation }) => {
           <Text style={styles.permissionText}>Camera access is required to scan documents.</Text>
           <TouchableOpacity 
             style={styles.permissionButton}
+            onPress={requestPermission}
+          >
+            <Text style={styles.permissionButtonText}>Grant Permission</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.permissionButton, {marginTop: 10, backgroundColor: '#ccc'}]}
             onPress={() => navigation.goBack()}
           >
             <Text style={styles.permissionButtonText}>Go Back</Text>
@@ -124,21 +112,19 @@ const ScanScreen = ({ navigation }) => {
       </View>
       
       <View style={styles.cameraContainer}>
-      <Camera
-        ref={cameraRef}
-        style={styles.camera}
-        type={CameraType.back}
-        flashMode={flashEnabled ? FlashMode.torch : FlashMode.off}
-        autoFocus={AutoFocus.on}
-        whiteBalance={WhiteBalance.auto}
-      >
+        <CameraView
+          ref={cameraRef}
+          style={styles.camera}
+          facing="back"
+          enableTorch={flashEnabled}
+        >
           {scanning && (
             <View style={styles.scanningOverlay}>
               <ActivityIndicator size="large" color="white" />
               <Text style={styles.scanningText}>Processing...</Text>
             </View>
           )}
-        </Camera>
+        </CameraView>
         
         <View style={styles.overlayControls}>
           <TouchableOpacity 

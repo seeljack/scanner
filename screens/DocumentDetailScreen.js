@@ -11,9 +11,12 @@ import {
   ActivityIndicator,
   Image,
   StatusBar,
-  SafeAreaView
+  SafeAreaView,
+  Modal
 } from 'react-native';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
+import ImageViewer from 'react-native-image-zoom-viewer';
+import { DocumentStore } from '../DocumentStore';
 
 // Add mock data directly in this file
 const MOCK_DOCUMENTS = [
@@ -123,8 +126,9 @@ const MOCK_AI_SUMMARY = `This is an invoice (#1234) dated May 15, 2023, for web 
 const MOCK_AI_TAGS = ['invoice', 'web development', 'design', 'business expense', 'tax deductible'];
 
 const DocumentDetailScreen = ({ route, navigation }) => {
-  // Get document ID from route params
+  // Get document ID and image URI from route params
   const documentId = route?.params?.documentId || '1';
+  const imageUri = route?.params?.imageUri;
   const isNewScan = route?.params?.newScan || false;
   
   // State for document details
@@ -148,6 +152,12 @@ const DocumentDetailScreen = ({ route, navigation }) => {
   // Refs
   const titleInputRef = useRef(null);
   const ocrTextInputRef = useRef(null);
+  
+  // Add state for fullscreen modal
+  const [isFullScreen, setIsFullScreen] = useState(false);
+  
+  // Add state for saving document
+  const [isSaving, setIsSaving] = useState(false);
   
   // Fetch document data when component mounts
   useEffect(() => {
@@ -303,41 +313,138 @@ const DocumentDetailScreen = ({ route, navigation }) => {
     );
   };
   
+  // Toggle fullscreen mode
+  const toggleFullScreen = () => {
+    setIsFullScreen(!isFullScreen);
+  };
+  
+  // Save document to library
+  const saveDocument = () => {
+    setIsSaving(true);
+    
+    try {
+      // Create the final document object with all data
+      const finalDocument = {
+        id: document.id || `doc-${Date.now()}`,
+        title: newTitle || 'New Document',
+        date: document.date || new Date().toISOString().split('T')[0],
+        category: document.category || 'Uncategorized',
+        tags: selectedTags,
+        preview: imageUri, // Use the captured image
+        ocrText: editedOcrText,
+        notes: notes,
+        lastViewed: new Date().toISOString().split('T')[0]
+      };
+      
+      // Save to our document store
+      DocumentStore.saveDocument(finalDocument);
+      
+      Alert.alert(
+        "Document Saved",
+        "Your document has been saved to the library",
+        [
+          { 
+            text: "OK", 
+            onPress: () => navigation.navigate('DocumentLibrary', { 
+              refreshTimestamp: Date.now(),
+              newDocumentId: finalDocument.id 
+            })
+          }
+        ]
+      );
+    } catch (error) {
+      console.error('Error saving document:', error);
+      Alert.alert(
+        "Error",
+        "Failed to save document. Please try again.",
+        [{ text: "OK" }]
+      );
+    } finally {
+      setIsSaving(false);
+    }
+  };
+  
+  // Render the document preview
+  const renderPreview = () => {
+    if (imageUri) {
+      console.log('imageUri', imageUri);
+      return (
+        <View style={styles.previewContainer}>
+          <TouchableOpacity 
+            activeOpacity={0.9}
+            onPress={toggleFullScreen}
+            style={{ flex: 1 }}
+          >
+            <Image 
+              source={{ uri: imageUri }} 
+              style={[styles.documentImage, { width: '100%', height: 400 }]}
+              resizeMode="contain"
+            />
+          </TouchableOpacity>
+          
+          {/* Fullscreen Modal */}
+          <Modal
+            visible={isFullScreen}
+            transparent={true}
+            animationType="fade"
+            onRequestClose={toggleFullScreen}
+          >
+            <View style={styles.fullScreenContainer}>
+              <StatusBar backgroundColor="#000" barStyle="light-content" />
+              
+              <TouchableOpacity 
+                style={styles.closeButton}
+                onPress={toggleFullScreen}
+              >
+                <MaterialIcons name="close" size={28} color="#fff" />
+              </TouchableOpacity>
+              
+              <ScrollView 
+                contentContainerStyle={styles.fullScreenScrollContainer}
+                maximumZoomScale={3}
+                minimumZoomScale={1}
+                bouncesZoom={true}
+              >
+                <Image 
+                  source={{ uri: imageUri }} 
+                  style={styles.fullScreenImage}
+                  resizeMode="contain"
+                />
+              </ScrollView>
+            </View>
+          </Modal>
+        </View>
+      );
+    } 
+    // If no camera image, check if document has a preview
+    else if (document?.preview) {
+      return (
+        <View style={styles.previewContainer}>
+          <Image 
+            source={{ uri: document.preview }} 
+            style={styles.documentImage}
+            resizeMode="contain"
+          />
+        </View>
+      );
+    } 
+    // If no images available, show placeholder
+    else {
+      return (
+        <View style={styles.previewContainer}>
+          <View style={styles.documentPlaceholder}>
+            <MaterialIcons name="description" size={80} color="#9e9e9e" />
+            <Text style={styles.placeholderText}>No Document Preview</Text>
+          </View>
+        </View>
+      );
+    }
+  };
+  
   const renderTabContent = () => {
     switch (activeTab) {
       case 'preview':
-        return (
-          <View style={styles.previewContainer}>
-            <TouchableOpacity 
-              style={styles.previewImageContainer}
-              onPress={handleZoomInstructions}
-            >
-              <View style={styles.documentPreview}>
-                <MaterialIcons name="description" size={80} color="#9e9e9e" />
-                <Text style={styles.previewText}>Document Preview</Text>
-                <Text style={styles.previewSubtext}>Tap to zoom</Text>
-              </View>
-            </TouchableOpacity>
-            
-            <View style={styles.previewActions}>
-              <TouchableOpacity 
-                style={styles.previewActionButton}
-                onPress={handleRescan}
-              >
-                <MaterialIcons name="refresh" size={20} color="#1E88E5" />
-                <Text style={styles.previewActionText}>Re-scan</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={styles.previewActionButton}
-                onPress={handleAddPage}
-              >
-                <MaterialIcons name="add-circle-outline" size={20} color="#1E88E5" />
-                <Text style={styles.previewActionText}>Add Page</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        );
+        return renderPreview();
       case 'text':
         return (
           <View style={styles.ocrContainer}>
@@ -632,16 +739,35 @@ const DocumentDetailScreen = ({ route, navigation }) => {
           </TouchableOpacity>
         </View>
         
-        {renderTabContent()}
+        <View style={styles.contentContainer}>
+          {renderTabContent()}
+        </View>
         
         {/* Bottom spacing */}
         <View style={styles.bottomSpacing} />
+        
+        <View style={styles.saveButtonContainer}>
+          <TouchableOpacity 
+            style={styles.saveButton}
+            onPress={saveDocument}
+            disabled={isSaving}
+          >
+            {isSaving ? (
+              <ActivityIndicator size="small" color="white" />
+            ) : (
+              <>
+                <MaterialIcons name="save" size={24} color="white" />
+                <Text style={styles.saveButtonText}>Save to Library</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
 };
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 
 const styles = StyleSheet.create({
   container: {
@@ -719,38 +845,25 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   previewContainer: {
-    backgroundColor: 'white',
-    marginTop: 16,
-    marginHorizontal: 16,
+    flex: 1,
+    backgroundColor: '#f5f5f5',
     borderRadius: 8,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    minHeight: 300, // Make sure this is tall enough
   },
-  previewImageContainer: {
-    width: '100%',
-    height: 400,
-    backgroundColor: '#f5f5f5',
-  },
-  documentPreview: {
+  documentImage: {
     width: '100%',
     height: '100%',
-    justifyContent: 'center',
+  },
+  documentPlaceholder: {
     alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
   },
-  previewText: {
-    fontSize: 18,
-    fontWeight: 'bold',
+  placeholderText: {
+    fontSize: 16,
     color: '#757575',
-    marginTop: 10,
-  },
-  previewSubtext: {
-    fontSize: 14,
-    color: '#9e9e9e',
-    marginTop: 5,
+    marginTop: 12,
   },
   previewActions: {
     flexDirection: 'row',
@@ -1010,6 +1123,9 @@ const styles = StyleSheet.create({
     color: '#2D5F7C',
     fontWeight: 'bold',
   },
+  contentContainer: {
+    flex: 1,
+  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -1042,6 +1158,59 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: '600',
+  },
+  fullScreenContainer: {
+    flex: 1,
+    backgroundColor: '#000',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullScreenScrollContainer: {
+    width: width,
+    height: height,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullScreenImage: {
+    width: width,
+    height: height,
+    resizeMode: 'contain',
+  },
+  closeButton: {
+    position: 'absolute',
+    top: 40,
+    right: 20,
+    zIndex: 10,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 20,
+    padding: 8,
+  },
+  saveButtonContainer: {
+    marginTop: 20,
+    marginBottom: 30,
+    alignItems: 'center',
+    paddingHorizontal: 16,
+  },
+  saveButton: {
+    flexDirection: 'row',
+    backgroundColor: '#2D5F7C',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 3,
+  },
+  saveButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
   },
 });
 

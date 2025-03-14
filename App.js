@@ -15,7 +15,7 @@ export default function App() {
     <NavigationContainer>
       <Stack.Navigator>
         <Stack.Screen
-          name="Home"
+          name="DocumentLibrary"
           component={DocumentLibraryScreen}
           options={{ headerShown: false }}
         />
