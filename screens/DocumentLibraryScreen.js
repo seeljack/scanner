@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { DocumentStore } from '../DocumentStore';
+import { CATEGORIES } from '../constants/Categories';
 
 // Mock data for documents
 const MOCK_DOCUMENTS = [
@@ -23,7 +24,6 @@ const MOCK_DOCUMENTS = [
     title: 'Invoice #1234',
     date: '2023-05-15',
     category: 'Invoices',
-    tags: ['business', 'tax'],
     preview: null,
     lastViewed: '2023-06-01'
   },
@@ -32,7 +32,6 @@ const MOCK_DOCUMENTS = [
     title: 'Receipt - Office Supplies',
     date: '2023-05-10',
     category: 'Receipts',
-    tags: ['business', 'expense'],
     preview: null,
     lastViewed: '2023-05-20'
   },
@@ -41,7 +40,6 @@ const MOCK_DOCUMENTS = [
     title: 'Rental Agreement',
     date: '2023-04-01',
     category: 'Contracts',
-    tags: ['personal', 'important'],
     preview: null,
     lastViewed: '2023-05-15'
   },
@@ -50,7 +48,6 @@ const MOCK_DOCUMENTS = [
     title: 'Driver License',
     date: '2023-03-15',
     category: 'IDs',
-    tags: ['personal', 'important'],
     preview: null,
     lastViewed: '2023-04-10'
   },
@@ -59,7 +56,6 @@ const MOCK_DOCUMENTS = [
     title: 'Meeting Notes',
     date: '2023-05-05',
     category: 'Notes',
-    tags: ['business'],
     preview: null,
     lastViewed: '2023-05-06'
   },
@@ -68,7 +64,6 @@ const MOCK_DOCUMENTS = [
     title: 'Internet Bill',
     date: '2023-05-20',
     category: 'Invoices',
-    tags: ['personal', 'bill'],
     preview: null,
     lastViewed: '2023-05-21'
   },
@@ -77,7 +72,6 @@ const MOCK_DOCUMENTS = [
     title: 'Health Insurance',
     date: '2023-02-10',
     category: 'Contracts',
-    tags: ['personal', 'health', 'important'],
     preview: null,
     lastViewed: '2023-03-15'
   },
@@ -86,20 +80,9 @@ const MOCK_DOCUMENTS = [
     title: 'Project Proposal',
     date: '2023-05-18',
     category: 'Notes',
-    tags: ['business', 'project'],
     preview: null,
     lastViewed: '2023-05-19'
   }
-];
-
-// Categories with icons
-const CATEGORIES = [
-  { id: 'all', name: 'All Documents', icon: 'folder' },
-  { id: 'invoices', name: 'Invoices', icon: 'receipt' },
-  { id: 'receipts', name: 'Receipts', icon: 'receipt-long' },
-  { id: 'contracts', name: 'Contracts', icon: 'description' },
-  { id: 'ids', name: 'IDs', icon: 'badge' },
-  { id: 'notes', name: 'Notes', icon: 'note' }
 ];
 
 const DocumentLibraryScreen = ({ navigation, route }) => {

@@ -17,6 +17,8 @@ import {
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import ImageViewer from 'react-native-image-zoom-viewer';
 import { DocumentStore } from '../DocumentStore';
+import { AVAILABLE_TAGS } from '../constants/Tags';
+import { getCategoryNames } from '../constants/Categories';
 
 // Add mock data directly in this file
 const MOCK_DOCUMENTS = [
@@ -125,6 +127,9 @@ const MOCK_AI_SUMMARY = `This is an invoice (#1234) dated May 15, 2023, for web 
 // Mock AI suggested tags
 const MOCK_AI_TAGS = ['invoice', 'web development', 'design', 'business expense', 'tax deductible'];
 
+// Replace your availableTags with categories
+const availableCategories = getCategoryNames();
+
 const DocumentDetailScreen = ({ route, navigation }) => {
   // Get document ID and image URI from route params
   const documentId = route?.params?.documentId || '1';
@@ -146,7 +151,7 @@ const DocumentDetailScreen = ({ route, navigation }) => {
   const [showSuggestedTags, setShowSuggestedTags] = useState(false);
   const [suggestedTags, setSuggestedTags] = useState([]);
   const [notes, setNotes] = useState('');
-  const [selectedTags, setSelectedTags] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState('');
   const [activeTab, setActiveTab] = useState('preview');
   
   // Refs
@@ -175,7 +180,7 @@ const DocumentDetailScreen = ({ route, navigation }) => {
         setNewTitle(foundDocument.title);
         setEditedOcrText(foundDocument.ocrText || MOCK_OCR_TEXT);
         setNotes(foundDocument.notes || '');
-        setSelectedTags(foundDocument.tags || []);
+        setSelectedCategory(foundDocument.category || '');
       } else if (isNewScan) {
         // Handle new scan
         const newDocument = {
@@ -193,7 +198,7 @@ const DocumentDetailScreen = ({ route, navigation }) => {
         setNewTitle(newDocument.title);
         setEditedOcrText(MOCK_OCR_TEXT);
         setNotes('');
-        setSelectedTags([]);
+        setSelectedCategory(newDocument.category || '');
       }
     }
     
@@ -247,15 +252,6 @@ const DocumentDetailScreen = ({ route, navigation }) => {
       setSuggestedTags(MOCK_AI_TAGS);
       setShowSuggestedTags(true);
     }, 1000);
-  };
-  
-  // Add or remove tag
-  const toggleTag = (tag) => {
-    if (selectedTags.includes(tag)) {
-      setSelectedTags(selectedTags.filter(t => t !== tag));
-    } else {
-      setSelectedTags([...selectedTags, tag]);
-    }
   };
   
   // Export document
@@ -318,30 +314,30 @@ const DocumentDetailScreen = ({ route, navigation }) => {
     
     try {
       const finalDocument = {
-        id: `doc-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        id: document?.id || `doc-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         title: newTitle || 'New Document',
-        date: new Date().toISOString().split('T')[0],
-        category: document?.category || 'Uncategorized',
-        tags: selectedTags || [],
-        preview: imageUri,
+        date: document?.date || new Date().toISOString().split('T')[0],
+        category: selectedCategory || 'Uncategorized',
+        preview: document?.preview || imageUri,
         ocrText: editedOcrText || '',
         notes: notes || '',
         lastViewed: new Date().toISOString().split('T')[0]
       };
       
-      console.log('Saving document with image:', finalDocument.preview);
       DocumentStore.saveDocument(finalDocument);
-
+      
       Alert.alert(
         "Document Saved",
         "Your document has been saved to the library",
-        [{ 
-          text: "OK", 
-          onPress: () => navigation.navigate('DocumentLibrary', { 
-            refreshTimestamp: Date.now(),
-            newDocumentId: finalDocument.id 
-          })
-        }]
+        [
+          { 
+            text: "OK", 
+            onPress: () => navigation.navigate('DocumentLibrary', { 
+              refreshTimestamp: Date.now(),
+              newDocumentId: finalDocument.id 
+            })
+          }
+        ]
       );
     } catch (error) {
       console.error('Error saving document:', error);
@@ -349,6 +345,32 @@ const DocumentDetailScreen = ({ route, navigation }) => {
     } finally {
       setIsSaving(false);
     }
+  };
+  
+  // Add this function to handle document deletion
+  const handleDelete = () => {
+    Alert.alert(
+      "Delete Document",
+      "Are you sure you want to delete this document? This action cannot be undone.",
+      [
+        {
+          text: "Cancel",
+          style: "cancel"
+        },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () => {
+            if (document?.id) {
+              DocumentStore.deleteDocument(document.id);
+              navigation.navigate('DocumentLibrary', {
+                refreshTimestamp: Date.now()
+              });
+            }
+          }
+        }
+      ]
+    );
   };
   
   // Render the document preview
@@ -515,12 +537,12 @@ const DocumentDetailScreen = ({ route, navigation }) => {
           <View style={styles.notesContainer}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Notes</Text>
-              <TouchableOpacity 
+              {/* <TouchableOpacity 
                 style={styles.saveNotesButton}
                 onPress={handleSaveNotes}
               >
-                <Text style={styles.saveNotesText}>Save</Text>
-              </TouchableOpacity>
+
+              </TouchableOpacity> */}
             </View>
             
             <TextInput
@@ -637,66 +659,31 @@ const DocumentDetailScreen = ({ route, navigation }) => {
           </Text>
         </View>
         
-        {/* Tags */}
-        <View style={styles.tagsContainer}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Tags</Text>
-            <TouchableOpacity 
-              style={styles.aiButton}
-              onPress={getAiSuggestedTags}
-            >
-              <MaterialIcons name="auto-awesome" size={18} color="#1E88E5" />
-              <Text style={styles.aiButtonText}>Suggest Tags</Text>
-            </TouchableOpacity>
-          </View>
-          
-          <View style={styles.tagsWrapper}>
-            {selectedTags.map(tag => (
+        {/* Categories */}
+        <View style={styles.categoriesSection}>
+          <Text style={styles.sectionTitle}>Category</Text>
+          <View style={styles.categoriesWrapper}>
+            {availableCategories.map(category => (
               <TouchableOpacity 
-                key={tag} 
-                style={styles.tagChip}
-                onPress={() => toggleTag(tag)}
+                key={category} 
+                style={[
+                  styles.categoryChip,
+                  selectedCategory === category && styles.selectedCategoryChip
+                ]}
+                onPress={() => setSelectedCategory(category)}
               >
-                <Text style={styles.tagText}>{tag}</Text>
-                <MaterialIcons name="close" size={16} color="#666" />
+                <Text style={[
+                  styles.categoryText,
+                  selectedCategory === category && styles.selectedCategoryText
+                ]}>
+                  {category}
+                </Text>
+                {selectedCategory === category && (
+                  <MaterialIcons name="check" size={16} color="white" style={styles.checkIcon} />
+                )}
               </TouchableOpacity>
             ))}
-            
-            <TouchableOpacity 
-              style={styles.addTagButton}
-              onPress={() => Alert.alert("Add Tag", "Add a custom tag to this document")}
-            >
-              <MaterialIcons name="add" size={20} color="#1E88E5" />
-            </TouchableOpacity>
           </View>
-          
-          {showSuggestedTags && (
-            <View style={styles.suggestedTagsContainer}>
-              <Text style={styles.suggestedTagsTitle}>AI Suggested Tags:</Text>
-              <View style={styles.suggestedTagsWrapper}>
-                {suggestedTags.map(tag => (
-                  <TouchableOpacity 
-                    key={tag} 
-                    style={[
-                      styles.suggestedTagChip,
-                      selectedTags.includes(tag) && styles.selectedSuggestedTagChip
-                    ]}
-                    onPress={() => toggleTag(tag)}
-                  >
-                    <Text style={[
-                      styles.suggestedTagText,
-                      selectedTags.includes(tag) && styles.selectedSuggestedTagText
-                    ]}>
-                      {tag}
-                    </Text>
-                    {selectedTags.includes(tag) && (
-                      <MaterialIcons name="check" size={16} color="#1E88E5" />
-                    )}
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-          )}
         </View>
         
         {/* Tabs */}
@@ -734,21 +721,24 @@ const DocumentDetailScreen = ({ route, navigation }) => {
         {/* Bottom spacing */}
         <View style={styles.bottomSpacing} />
         
-        <View style={styles.saveButtonContainer}>
-          <TouchableOpacity 
-            style={styles.saveButton}
+        <View style={styles.buttonContainer}>
+        <TouchableOpacity
+            style={[styles.button, styles.deleteButton]}
+            onPress={handleDelete}
+          >
+            <MaterialIcons name="delete" size={20} color="white" />
+            <Text style={styles.buttonText}>Delete</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.button, styles.saveButton]}
             onPress={saveDocument}
             disabled={isSaving}
           >
-            {isSaving ? (
-              <ActivityIndicator size="small" color="white" />
-            ) : (
-              <>
-                <MaterialIcons name="save" size={24} color="white" />
-                <Text style={styles.saveButtonText}>Save to Library</Text>
-              </>
-            )}
+            <Text style={styles.buttonText}>
+              {isSaving ? 'Saving...' : 'Save'}
+            </Text>
           </TouchableOpacity>
+
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -870,148 +860,42 @@ const styles = StyleSheet.create({
     color: '#2D5F7C',
     fontWeight: '500',
   },
-  tagsContainer: {
-    backgroundColor: 'white',
-    marginTop: 16,
-    marginHorizontal: 16,
-    borderRadius: 8,
+  categoriesSection: {
     padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 1,
-    elevation: 1,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
   },
   sectionTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontSize: 18,
+    fontWeight: '600',
     color: '#333',
+    marginBottom: 12,
   },
-  aiButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#E8EEF2',
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 16,
-  },
-  aiButtonText: {
-    color: '#2D5F7C',
-    fontSize: 12,
-    fontWeight: '500',
-    marginLeft: 4,
-  },
-  tagsWrapper: {
+  categoriesWrapper: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    marginTop: 8,
   },
-  tagChip: {
+  categoryChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#E8EEF2',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 16,
-    marginRight: 8,
-    marginBottom: 8,
-  },
-  tagText: {
-    color: '#2D5F7C',
-    fontSize: 14,
-    marginRight: 4,
-  },
-  addTagButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
     backgroundColor: '#f0f0f0',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 8,
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    margin: 4,
   },
-  suggestedTagsContainer: {
-    marginTop: 8,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
+  selectedCategoryChip: {
+    backgroundColor: '#2D5F7C',
   },
-  suggestedTagsTitle: {
+  categoryText: {
     fontSize: 14,
     color: '#666',
-    marginBottom: 8,
-  },
-  suggestedTagsWrapper: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  suggestedTagChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#E8EEF2',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 16,
-    marginRight: 8,
-    marginBottom: 8,
-  },
-  selectedSuggestedTagChip: {
-    backgroundColor: '#E8EEF2',
-  },
-  suggestedTagText: {
-    color: '#2D5F7C',
-    fontSize: 14,
     marginRight: 4,
   },
-  selectedSuggestedTagText: {
-    color: '#2D5F7C',
+  selectedCategoryText: {
+    color: 'white',
   },
-  summaryContainer: {
-    backgroundColor: 'white',
-    marginTop: 16,
-    marginHorizontal: 16,
-    borderRadius: 8,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 1,
-    elevation: 1,
-  },
-  loadingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 16,
-  },
-  loadingText: {
-    marginLeft: 8,
-    color: '#666',
-  },
-  summaryTextContainer: {
-    backgroundColor: '#f9f9f9',
-    padding: 12,
-    borderRadius: 8,
-  },
-  summaryText: {
-    fontSize: 14,
-    color: '#333',
-    lineHeight: 20,
-  },
-  emptySummaryContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24,
-  },
-  emptySummaryText: {
-    marginTop: 8,
-    color: '#9e9e9e',
-    textAlign: 'center',
+  checkIcon: {
+    marginLeft: 4,
   },
   ocrContainer: {
     backgroundColor: 'white',
@@ -1173,28 +1057,71 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 8,
   },
-  saveButtonContainer: {
-    marginTop: 20,
-    marginBottom: 30,
+  buttonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    padding: 16,
+    paddingBottom: 32, // Extra padding at bottom
+  },
+  button: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
+    justifyContent: 'center',
+    padding: 12,
+    borderRadius: 8,
+    minWidth: 120,
   },
   saveButton: {
-    flexDirection: 'row',
+    backgroundColor: '#2D5F7C',
+  },
+  deleteButton: {
+    backgroundColor: '#DC3545', // Red color for delete
+    marginLeft: 12,
+  },
+  buttonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  summaryContainer: {
+    backgroundColor: 'white',
+    marginTop: 16,
+    marginHorizontal: 16,
+    borderRadius: 8,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 1,
+    elevation: 1,
+  },
+  summaryTextContainer: {
+    padding: 16,
+  },
+  summaryText: {
+    fontSize: 14,
+    color: '#333',
+  },
+  emptySummaryContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptySummaryText: {
+    fontSize: 16,
+    color: '#757575',
+    marginTop: 12,
+  },
+  aiButton: {
     backgroundColor: '#2D5F7C',
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    width: '100%',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-    elevation: 3,
   },
-  saveButtonText: {
+  aiButtonText: {
     color: 'white',
     fontSize: 16,
     fontWeight: '600',
