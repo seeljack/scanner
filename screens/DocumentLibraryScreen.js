@@ -14,6 +14,7 @@ import {
   StatusBar
 } from 'react-native';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
+import { DocumentStore } from '../DocumentStore';
 
 // Mock data for documents
 const MOCK_DOCUMENTS = [
@@ -101,8 +102,20 @@ const CATEGORIES = [
   { id: 'notes', name: 'Notes', icon: 'note' }
 ];
 
-const DocumentLibraryScreen = ({ navigation }) => {
-  const [documents, setDocuments] = useState(MOCK_DOCUMENTS);
+const DocumentLibraryScreen = ({ navigation, route }) => {
+  // Get the refresh parameters
+  const refreshTimestamp = route?.params?.refreshTimestamp || 0;
+  const newDocumentId = route?.params?.newDocumentId;
+
+  // Initialize with empty array instead of MOCK_DOCUMENTS
+  const [documents, setDocuments] = useState([]);
+
+  // Add this useEffect to load documents from DocumentStore
+  useEffect(() => {
+    const docs = DocumentStore.getDocuments();
+    setDocuments(docs);
+  }, [refreshTimestamp]); // This will reload documents when refreshTimestamp changes
+
   const [searchQuery, setSearchQuery] = useState('');
   const [isGridView, setIsGridView] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -166,7 +179,9 @@ const DocumentLibraryScreen = ({ navigation }) => {
   };
 
   const handleScan = () => {
-    navigation.navigate('Scan');
+    navigation.navigate('Scan', {
+      isNewDocument: true
+    });
   };
 
   const handleSettings = () => {
@@ -180,40 +195,53 @@ const DocumentLibraryScreen = ({ navigation }) => {
   };
 
   // Render document item based on view mode
-  const renderDocumentItem = ({ item }) => (
-    <TouchableOpacity 
-      style={isGridView ? styles.gridItem : styles.listItem}
-      onPress={() => handleDocumentSelect(item)}
-    >
-      <View style={isGridView ? styles.gridItemContent : styles.listItemContent}>
-        <View style={styles.documentPreview}>
-          <MaterialIcons name="description" size={50} color="#9e9e9e" />
-        </View>
-        
-        <View style={isGridView ? styles.gridItemDetails : styles.listItemDetails}>
-          <Text 
-            style={styles.documentTitle}
-            numberOfLines={isGridView ? 2 : 1}
-          >
-            {item.title}
-          </Text>
+  const renderDocumentItem = ({ item }) => {
+    console.log('Rendering document with preview:', item.preview); // Debug log
+    
+    return (
+      <TouchableOpacity 
+        style={isGridView ? styles.gridItem : styles.listItem}
+        onPress={() => handleDocumentSelect(item)}
+      >
+        <View style={isGridView ? styles.gridItemContent : styles.listItemContent}>
+          <View style={[
+            styles.documentPreview,
+            isGridView && styles.gridDocumentPreview
+          ]}>
+            {item.preview ? (
+              <Image
+                source={{ uri: item.preview }}
+                style={styles.documentImage}
+                resizeMode="cover"
+                onError={(error) => console.log('Image loading error:', error)} // Debug log
+              />
+            ) : (
+              <MaterialIcons name="description" size={50} color="#9e9e9e" />
+            )}
+          </View>
           
-          {!isGridView && (
-            <View style={styles.listItemMeta}>
-              <Text style={styles.documentDate}>{formatDate(item.date)}</Text>
-              <View style={styles.categoryBadge}>
-                <Text style={styles.categoryText}>{item.category}</Text>
+          <View style={isGridView ? styles.gridItemDetails : styles.listItemDetails}>
+            <Text style={styles.documentTitle} numberOfLines={isGridView ? 2 : 1}>
+              {item.title}
+            </Text>
+            
+            {!isGridView && (
+              <View style={styles.listItemMeta}>
+                <Text style={styles.documentDate}>{formatDate(item.date)}</Text>
+                <View style={styles.categoryBadge}>
+                  <Text style={styles.categoryText}>{item.category}</Text>
+                </View>
               </View>
-            </View>
-          )}
-          
-          {isGridView && (
-            <Text style={styles.documentDate}>{formatDate(item.date)}</Text>
-          )}
+            )}
+            
+            {isGridView && (
+              <Text style={styles.documentDate}>{formatDate(item.date)}</Text>
+            )}
+          </View>
         </View>
-      </View>
-    </TouchableOpacity>
-  );
+      </TouchableOpacity>
+    );
+  };
 
   // Helper function to get icon for category
   const getCategoryIcon = (category) => {
@@ -538,15 +566,25 @@ const styles = StyleSheet.create({
   listItemContent: {
     flexDirection: 'row',
     padding: 12,
+    alignItems: 'center',
   },
   documentPreview: {
-    width: '100%',
-    height: 100,
+    width: 80,
+    height: 80,
     backgroundColor: '#f5f5f5',
     borderRadius: 4,
+    overflow: 'hidden',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 8,
+  },
+  gridDocumentPreview: {
+    width: '100%',
+    height: 120,
+  },
+  documentImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 4,
   },
   gridItemDetails: {
     flex: 1,
@@ -615,10 +653,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 3,
     elevation: 5,
-  },
-  documentImage: {
-    width: '100%',
-    height: '100%',
   },
 });
 

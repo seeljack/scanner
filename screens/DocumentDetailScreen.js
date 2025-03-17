@@ -161,24 +161,20 @@ const DocumentDetailScreen = ({ route, navigation }) => {
   
   // Fetch document data when component mounts
   useEffect(() => {
-    // In a real app, you would fetch this from a database or API
-    // For now, we'll use the mock data
-    const fetchDocument = () => {
-      setIsLoading(true);
-      
-      // Find the document in MOCK_DOCUMENTS by ID
-      const foundDocument = MOCK_DOCUMENTS.find(doc => doc.id === documentId);
+    if (documentId) {
+      // Get document from DocumentStore instead of MOCK_DOCUMENTS
+      const foundDocument = DocumentStore.getDocumentById(documentId);
       
       if (foundDocument) {
         // Use the actual document data
         setDocument({
           ...foundDocument,
-          ocrText: MOCK_OCR_TEXT, // This would come from the real document in a full implementation
-          notes: ''
+          ocrText: foundDocument.ocrText || MOCK_OCR_TEXT, // Fallback to mock text if needed
+          notes: foundDocument.notes || ''
         });
         setNewTitle(foundDocument.title);
-        setEditedOcrText(MOCK_OCR_TEXT);
-        setNotes('');
+        setEditedOcrText(foundDocument.ocrText || MOCK_OCR_TEXT);
+        setNotes(foundDocument.notes || '');
         setSelectedTags(foundDocument.tags || []);
       } else if (isNewScan) {
         // Handle new scan
@@ -199,11 +195,9 @@ const DocumentDetailScreen = ({ route, navigation }) => {
         setNotes('');
         setSelectedTags([]);
       }
-      
-      setIsLoading(false);
-    };
+    }
     
-    fetchDocument();
+    setIsLoading(false);
   }, [documentId, isNewScan]);
   
   // Handle title edit
@@ -323,42 +317,35 @@ const DocumentDetailScreen = ({ route, navigation }) => {
     setIsSaving(true);
     
     try {
-      // Create the final document object with all data
       const finalDocument = {
-        id: document.id || `doc-${Date.now()}`,
+        id: `doc-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         title: newTitle || 'New Document',
-        date: document.date || new Date().toISOString().split('T')[0],
-        category: document.category || 'Uncategorized',
-        tags: selectedTags,
-        preview: imageUri, // Use the captured image
-        ocrText: editedOcrText,
-        notes: notes,
+        date: new Date().toISOString().split('T')[0],
+        category: document?.category || 'Uncategorized',
+        tags: selectedTags || [],
+        preview: imageUri,
+        ocrText: editedOcrText || '',
+        notes: notes || '',
         lastViewed: new Date().toISOString().split('T')[0]
       };
       
-      // Save to our document store
+      console.log('Saving document with image:', finalDocument.preview);
       DocumentStore.saveDocument(finalDocument);
-      
+
       Alert.alert(
         "Document Saved",
         "Your document has been saved to the library",
-        [
-          { 
-            text: "OK", 
-            onPress: () => navigation.navigate('DocumentLibrary', { 
-              refreshTimestamp: Date.now(),
-              newDocumentId: finalDocument.id 
-            })
-          }
-        ]
+        [{ 
+          text: "OK", 
+          onPress: () => navigation.navigate('DocumentLibrary', { 
+            refreshTimestamp: Date.now(),
+            newDocumentId: finalDocument.id 
+          })
+        }]
       );
     } catch (error) {
       console.error('Error saving document:', error);
-      Alert.alert(
-        "Error",
-        "Failed to save document. Please try again.",
-        [{ text: "OK" }]
-      );
+      Alert.alert("Error", "Failed to save document. Please try again.");
     } finally {
       setIsSaving(false);
     }
@@ -565,6 +552,7 @@ const DocumentDetailScreen = ({ route, navigation }) => {
   
   // If document not found
   if (!document) {
+    console.log('Document not found', document);
     return (
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
